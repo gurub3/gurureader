@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron';
+import { app, ipcMain } from 'electron';
 import {
   clearHistory,
   createCategory,
@@ -38,6 +38,8 @@ import type {
 } from '@shared/types';
 
 export function registerIpc(): void {
+  ipcMain.handle('app:version', () => app.getVersion());
+
   ipcMain.handle('sources:list', () =>
     listSources().map((s) => ({
       id: s.id,

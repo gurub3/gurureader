@@ -18,6 +18,7 @@ import type {
 } from '../shared/types';
 
 const api: ApiBridge = {
+  getAppVersion: () => ipcRenderer.invoke('app:version') as Promise<string>,
   listSources: () => ipcRenderer.invoke('sources:list') as Promise<SourceInfo[]>,
   getFilters: (sourceId: string) =>
     ipcRenderer.invoke('sources:filters', sourceId) as Promise<SourceFilter[]>,

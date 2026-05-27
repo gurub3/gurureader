@@ -6,11 +6,17 @@ export default function Settings(): JSX.Element {
   const [settings, setSettings] = useState<SettingsT | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [newCat, setNewCat] = useState('');
+  const [version, setVersion] = useState('');
 
   const refresh = async (): Promise<void> => {
-    const [s, c] = await Promise.all([api.getSettings(), api.listCategories()]);
+    const [s, c, v] = await Promise.all([
+      api.getSettings(),
+      api.listCategories(),
+      api.getAppVersion()
+    ]);
     setSettings(s);
     setCategories(c);
+    setVersion(v);
   };
 
   useEffect(() => {
@@ -170,7 +176,7 @@ export default function Settings(): JSX.Element {
       <section className="settings-section">
         <h3>About</h3>
         <p style={{ color: 'var(--text-dim)' }}>
-          gurureader v0.3.0 · Electron desktop manga reader · Library and downloads stored locally.
+          gurureader{version ? ` v${version}` : ''} · Electron desktop manga reader · Library and downloads stored locally.
         </p>
       </section>
     </div>

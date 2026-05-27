@@ -64,11 +64,47 @@ input:focus { border-color: var(--accent); }
   flex-direction: column;
   gap: 4px;
 }
-.sidebar h1 {
+.sidebar .brand {
   margin: 0 16px 20px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.sidebar h1 {
+  margin: 0;
   font-size: 18px;
   letter-spacing: 1px;
   color: var(--accent);
+}
+.sidebar .version {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.sidebar .sources-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.sidebar .nsfw-toggle {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+}
+.sidebar .nsfw-toggle:hover { color: var(--text); border-color: var(--accent); }
+.sidebar .nsfw-toggle.on {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
 }
 .sidebar a, .sidebar .navlink {
   display: flex;

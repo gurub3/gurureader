@@ -130,6 +130,7 @@ export interface HistoryEntry {
 }
 
 export interface ApiBridge {
+  getAppVersion(): Promise<string>;
   listSources(): Promise<SourceInfo[]>;
   getFilters(sourceId: string): Promise<SourceFilter[]>;
   browse(q: BrowseQuery): Promise<PagedList<MangaSummary>>;
