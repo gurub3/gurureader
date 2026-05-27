@@ -1,0 +1,14 @@
+node_modules/
+out/
+dist/
+release/
+.vite/
+*.log
+*.tmp
+.DS_Store
+.env
+.env.local
+.claude/scheduled_tasks.lock
+.claude/settings.local.json
+install.err
+install.out
