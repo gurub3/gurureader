@@ -89,7 +89,16 @@ input:focus { border-color: var(--accent); }
 .sidebar .spacer { flex: 1; }
 .sidebar .src-list { padding: 0 16px; font-size: 12px; color: var(--text-dim); }
 .sidebar .src-list h3 { margin: 16px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); }
-.sidebar .src-list a { padding: 6px 0; border: none; }
+.sidebar .src-list a { padding: 6px 0; border: none; display: flex; align-items: center; gap: 6px; }
+.sidebar .nsfw-pill {
+  font-size: 9px;
+  background: var(--danger);
+  color: #fff;
+  padding: 1px 5px;
+  border-radius: 8px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
 
 .main {
   overflow-y: auto;

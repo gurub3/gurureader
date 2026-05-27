@@ -3,6 +3,7 @@ export interface SourceInfo {
   name: string;
   lang: string;
   baseUrl: string;
+  isNsfw?: boolean;
 }
 
 export interface MangaSummary {
@@ -111,6 +112,7 @@ export interface Settings {
   defaultCategoryId: string | null;
   showReadChapters: boolean;
   historyEnabled: boolean;
+  showNsfwSources: boolean;
 }
 
 export interface HistoryEntry {

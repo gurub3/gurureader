@@ -39,7 +39,13 @@ import type {
 
 export function registerIpc(): void {
   ipcMain.handle('sources:list', () =>
-    listSources().map((s) => ({ id: s.id, name: s.name, lang: s.lang, baseUrl: s.baseUrl }))
+    listSources().map((s) => ({
+      id: s.id,
+      name: s.name,
+      lang: s.lang,
+      baseUrl: s.baseUrl,
+      isNsfw: s.isNsfw
+    }))
   );
 
   ipcMain.handle('sources:filters', (_e, sourceId: string) => {

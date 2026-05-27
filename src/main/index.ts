@@ -86,6 +86,10 @@ function setupHeaders(): void {
       url.includes('planeptune.us')
     ) {
       headers['Referer'] = 'https://weebcentral.com/';
+    } else if (url.includes('nhentai.net')) {
+      headers['Referer'] = 'https://nhentai.net/';
+    } else if (url.includes('toonily.com') || url.includes('toonily.me')) {
+      headers['Referer'] = 'https://toonily.com/';
     }
     cb({ requestHeaders: headers });
   });

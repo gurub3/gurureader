@@ -20,6 +20,7 @@ export default function Settings(): JSX.Element {
   const patch = async (p: Partial<SettingsT>): Promise<void> => {
     const next = await api.updateSettings(p);
     setSettings(next);
+    window.dispatchEvent(new CustomEvent('settings-changed', { detail: next }));
   };
 
   const createCat = async (): Promise<void> => {
@@ -124,6 +125,18 @@ export default function Settings(): JSX.Element {
       </section>
 
       <section className="settings-section">
+        <h3>Sources</h3>
+        <div className="setting-row">
+          <label>Show NSFW sources (18+) in the sidebar</label>
+          <input
+            type="checkbox"
+            checked={settings.showNsfwSources}
+            onChange={(e) => patch({ showNsfwSources: e.target.checked })}
+          />
+        </div>
+      </section>
+
+      <section className="settings-section">
         <h3>Categories</h3>
         <div className="cat-list">
           {categories.length === 0 && (
@@ -157,7 +170,7 @@ export default function Settings(): JSX.Element {
       <section className="settings-section">
         <h3>About</h3>
         <p style={{ color: 'var(--text-dim)' }}>
-          gurureader v0.2.0 · Electron desktop manga reader · Library and downloads stored locally.
+          gurureader v0.3.0 · Electron desktop manga reader · Library and downloads stored locally.
         </p>
       </section>
     </div>

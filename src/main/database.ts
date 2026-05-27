@@ -28,7 +28,8 @@ const DEFAULT_SETTINGS: Settings = {
   defaultDirection: 'ltr',
   defaultCategoryId: null,
   showReadChapters: true,
-  historyEnabled: true
+  historyEnabled: true,
+  showNsfwSources: false
 };
 
 function emptyDb(): DbShape {
