@@ -10,6 +10,20 @@ import { registerIpc } from './ipc';
 // Prefer IPv4 for outbound fetches.
 dns.setDefaultResultOrder('ipv4first');
 
+// Some ISPs DNS-block specific hosts (notably Italy's filter on adult-content
+// domains; users see ERR_NAME_NOT_RESOLVED). Route Chromium's DNS through
+// Cloudflare's DNS-over-HTTPS resolver so users behind those filters can still
+// reach our sources. This affects only the Chromium network stack inside the
+// app, not the user's system DNS. Must be set before app is ready.
+app.commandLine.appendSwitch(
+  'enable-features',
+  'BuiltInDnsClient,DnsOverHttps,DnsOverHttpsUpgrade'
+);
+app.commandLine.appendSwitch(
+  'dns-over-https-templates',
+  'https://cloudflare-dns.com/dns-query{?dns}'
+);
+
 // One-time migration: if the user previously ran this app under the old name
 // "reader", copy their library/history/settings/downloads into the new
 // gurureader userData folder so nothing is lost on rename.

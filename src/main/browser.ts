@@ -144,8 +144,26 @@ export async function browserGet(
         if (code === -3) return;
         settled = true;
         cleanup();
-        if (opts.acceptAnyStatus) resolve();
-        else reject(new Error(`load fail ${code}: ${desc} (${validatedURL})`));
+        if (opts.acceptAnyStatus) {
+          resolve();
+          return;
+        }
+        let hint = '';
+        if (code === -105) {
+          // ERR_NAME_NOT_RESOLVED — DNS failure. With DoH enabled, this means
+          // even Cloudflare can't resolve the host: site is down, the URL is
+          // wrong, or your network blocks DoH itself (e.g. firewall/VPN).
+          hint =
+            ' — DNS lookup failed even via DNS-over-HTTPS. Site may be down, ' +
+            'the URL is wrong, or your network blocks Cloudflare DoH.';
+        } else if (code === -106 || code === -2 || code === -7 || code === -109) {
+          // INTERNET_DISCONNECTED / FAILED / TIMED_OUT / ADDRESS_UNREACHABLE
+          hint = ' — network error. Check your connection or try a VPN.';
+        } else if (code === -201 || code === -202 || code === -200) {
+          // Certificate errors
+          hint = ' — TLS certificate problem. Your system clock or antivirus may be interfering.';
+        }
+        reject(new Error(`load fail ${code}: ${desc} (${validatedURL})${hint}`));
       };
       w.webContents.on('did-finish-load', onLoad);
       w.webContents.on('did-fail-load', onFail);
