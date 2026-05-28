@@ -20,17 +20,17 @@ function parseListing(html: string): ParsedGallery[] {
   const $ = cheerio.load(html);
   const out: ParsedGallery[] = [];
   const seen = new Set<string>();
-  $('.gallery, .container .gallery').each((_, el) => {
-    const $el = $(el);
-    const link = $el.find('a.cover, a').first();
+  const collect = ($el: cheerio.Cheerio<any>, link: cheerio.Cheerio<any>): void => {
     const href = link.attr('href') ?? '';
     const m = href.match(/\/g\/(\d+)/);
     if (!m) return;
     const id = m[1];
     if (seen.has(id)) return;
     seen.add(id);
-    const caption = $el.find('.caption').first().text().trim();
     const img = $el.find('img').first();
+    const caption =
+      $el.find('.caption').first().text().trim() ||
+      $el.next('.caption').first().text().trim();
     const title =
       caption ||
       img.attr('alt')?.trim() ||
@@ -38,7 +38,22 @@ function parseListing(html: string): ParsedGallery[] {
       'Untitled';
     const cover = img.attr('data-src') || img.attr('src') || undefined;
     out.push({ id, title, coverUrl: cover });
+  };
+  // Preferred path: `.gallery` cards (the historical nhentai listing markup).
+  $('.gallery').each((_, el) => {
+    const $el = $(el);
+    const link = $el.find('a').first();
+    collect($el, link);
   });
+  // Fallback: any link to /g/{id}/ on the page. Works even if class names change.
+  if (out.length === 0) {
+    $('a[href^="/g/"]').each((_, el) => {
+      const $a = $(el);
+      // Skip pagination / nav links — keep only ones with an image inside.
+      if ($a.find('img').length === 0) return;
+      collect($a.parent(), $a);
+    });
+  }
   return out;
 }
 
@@ -83,18 +98,35 @@ export const nhentai: Source = {
   async fetchPopular(page, filters) {
     const sort = (filters?.sort as string) || 'popular';
     const url = `${SITE}/?page=${page}${sort !== 'date' ? `&sort=${sort}` : ''}`;
-    const { html } = await browserGet(url, {
-      waitForSelector: '.gallery, .container',
-      settleMs: 1200
+    const { html, finalUrl, title } = await browserGet(url, {
+      waitForSelector: '.gallery',
+      settleMs: 1500,
+      scrollToLoad: true,
+      scrollMaxMs: 4000
     });
     const items = parseListing(html).map(toSummary);
+    if (items.length === 0) {
+      throw new Error(
+        `nhentai returned 0 results from ${finalUrl} (page title: "${title}"). The site may be blocking the embedded browser or your network.`
+      );
+    }
     return { items, page, hasNext: items.length > 0 };
   },
 
   async fetchLatest(page) {
     const url = `${SITE}/?page=${page}&sort=date`;
-    const { html } = await browserGet(url, { waitForSelector: '.gallery', settleMs: 1000 });
+    const { html, finalUrl, title } = await browserGet(url, {
+      waitForSelector: '.gallery',
+      settleMs: 1500,
+      scrollToLoad: true,
+      scrollMaxMs: 4000
+    });
     const items = parseListing(html).map(toSummary);
+    if (items.length === 0) {
+      throw new Error(
+        `nhentai returned 0 results from ${finalUrl} (page title: "${title}").`
+      );
+    }
     return { items, page, hasNext: items.length > 0 };
   },
 
@@ -103,7 +135,12 @@ export const nhentai: Source = {
     const params = new URLSearchParams({ q: query || '""', page: String(page) });
     if (sort && sort !== 'popular') params.set('sort', sort);
     const url = `${SITE}/search/?${params.toString()}`;
-    const { html } = await browserGet(url, { waitForSelector: '.gallery', settleMs: 1200 });
+    const { html } = await browserGet(url, {
+      waitForSelector: '.gallery',
+      settleMs: 1500,
+      scrollToLoad: true,
+      scrollMaxMs: 4000
+    });
     const items = parseListing(html).map(toSummary);
     return { items, page, hasNext: items.length > 0 };
   },

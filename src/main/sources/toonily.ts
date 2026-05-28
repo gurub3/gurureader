@@ -106,36 +106,55 @@ export const toonily: Source = {
     ];
   },
 
+  // Madara archive pages paginate via /page/N/ in the path, not ?page=N.
   async fetchPopular(page, filters) {
     const sort = (filters?.sort as string) || 'trending';
-    const url = `${SITE}/search/?m_orderby=${sort}&page=${page}`;
-    const { html } = await browserGet(url, {
+    const url =
+      page > 1
+        ? `${SITE}/search/page/${page}/?m_orderby=${sort}`
+        : `${SITE}/search/?m_orderby=${sort}`;
+    const { html, finalUrl } = await browserGet(url, {
       waitForSelector: '.page-item-detail, .manga, a[href*="/webtoon/"]',
-      settleMs: 1500
+      settleMs: 1500,
+      scrollToLoad: true,
+      scrollMaxMs: 4000
     });
     const items = parseListing(html);
-    return { items, page, hasNext: items.length > 0 };
+    // If Toonily redirected page 2 back to page 1 (no more results), the URL
+    // will no longer contain "/page/N/". Stop pagination in that case.
+    const stillPaginated = page <= 1 || /\/page\/\d+\//.test(finalUrl);
+    return { items, page, hasNext: items.length > 0 && stillPaginated };
   },
 
   async fetchLatest(page) {
-    const url = `${SITE}/search/?m_orderby=latest&page=${page}`;
-    const { html } = await browserGet(url, {
+    const url =
+      page > 1
+        ? `${SITE}/search/page/${page}/?m_orderby=latest`
+        : `${SITE}/search/?m_orderby=latest`;
+    const { html, finalUrl } = await browserGet(url, {
       waitForSelector: '.page-item-detail, .manga, a[href*="/webtoon/"]',
-      settleMs: 1500
+      settleMs: 1500,
+      scrollToLoad: true,
+      scrollMaxMs: 4000
     });
     const items = parseListing(html);
-    return { items, page, hasNext: items.length > 0 };
+    const stillPaginated = page <= 1 || /\/page\/\d+\//.test(finalUrl);
+    return { items, page, hasNext: items.length > 0 && stillPaginated };
   },
 
   async search(query, page) {
     const q = encodeURIComponent(query.trim().toLowerCase().replace(/\s+/g, '+'));
-    const url = `${SITE}/search/${q}/?page=${page}`;
-    const { html } = await browserGet(url, {
+    const url =
+      page > 1 ? `${SITE}/search/${q}/page/${page}/` : `${SITE}/search/${q}/`;
+    const { html, finalUrl } = await browserGet(url, {
       waitForSelector: '.page-item-detail, .manga, a[href*="/webtoon/"]',
-      settleMs: 1500
+      settleMs: 1500,
+      scrollToLoad: true,
+      scrollMaxMs: 4000
     });
     const items = parseListing(html);
-    return { items, page, hasNext: items.length > 0 };
+    const stillPaginated = page <= 1 || /\/page\/\d+\//.test(finalUrl);
+    return { items, page, hasNext: items.length > 0 && stillPaginated };
   },
 
   async fetchDetail(slug) {

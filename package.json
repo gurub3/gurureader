@@ -1,6 +1,6 @@
 {
   "name": "gurureader",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Desktop manga reader with pluggable sources, library, favorites and offline downloads.",
   "main": "out/main/index.js",
   "author": "fabio.ricci@objlab.it",
