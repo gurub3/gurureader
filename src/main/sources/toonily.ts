@@ -1,43 +1,23 @@
 import * as cheerio from 'cheerio';
-import type {
-  ChapterInfo,
-  FilterValues,
-  MangaDetail,
-  MangaSummary,
-  PagedList,
-  SourceFilter
-} from '@shared/types';
+import type { ChapterInfo, MangaSummary, SourceFilter } from '@shared/types';
 import type { Source } from './types';
-import { cfFetch, getRenderedImageUrls } from '../cfbypass';
+import { browserGet } from '../browser';
 
-// Toonily uses the WordPress "Madara" theme. CloudFlare-protected, so all
-// fetches go through cfFetch (Electron net + auto-solve).
+// Toonily is CloudFlare-protected and uses the WordPress "Madara" theme.
+// All requests render the page in a hidden Chromium window — that lets the
+// CF JS challenge run naturally and gives us cookies for the session.
 const SITE = 'https://toonily.com';
-
-async function toonText(url: string): Promise<string> {
-  const res = await cfFetch(url, {
-    headers: {
-      Accept: 'text/html,*/*',
-      Referer: SITE + '/',
-      'Accept-Language': 'en-US,en;q=0.9'
-    }
-  });
-  if (!res.ok) throw new Error(`Toonily ${url} -> ${res.status}`);
-  return res.text();
-}
 
 function absUrl(href: string): string {
   return href.startsWith('http') ? href : new URL(href, SITE).toString();
 }
 
 function slugFromHref(href: string): string | null {
-  // /webtoon/{slug}/ or /serie/{slug}/
   const m = href.match(/\/(?:webtoon|serie|manga)\/([^/?#]+)/);
   return m ? m[1] : null;
 }
 
 function chapterSlugFromHref(href: string): string | null {
-  // /webtoon/{manga-slug}/chapter-N/
   const m = href.match(/\/(?:webtoon|serie|manga)\/[^/]+\/([^/?#]+)/);
   return m ? m[1] : null;
 }
@@ -46,8 +26,7 @@ function parseListing(html: string): MangaSummary[] {
   const $ = cheerio.load(html);
   const out: MangaSummary[] = [];
   const seen = new Set<string>();
-  // Madara theme uses .page-item-detail or .item-summary etc.
-  $('.page-item-detail, .manga-item, .c-tabs-item__content').each((_, el) => {
+  $('.page-item-detail, .manga-item, .c-tabs-item__content, .manga').each((_, el) => {
     const $el = $(el);
     const link = $el.find('a[href*="/webtoon/"], a[href*="/serie/"], a[href*="/manga/"]').first();
     const href = link.attr('href') ?? '';
@@ -71,6 +50,31 @@ function parseListing(html: string): MangaSummary[] {
       url: absUrl(href)
     });
   });
+  // Fallback when the theme didn't match: scan any /webtoon/ links.
+  if (out.length === 0) {
+    $('a[href*="/webtoon/"]').each((_, el) => {
+      const $a = $(el);
+      const href = $a.attr('href') ?? '';
+      const slug = slugFromHref(href);
+      if (!slug || seen.has(slug)) return;
+      // Skip chapter links (they have two slug segments).
+      if (/\/webtoon\/[^/]+\/[^/]+\//.test(href)) return;
+      seen.add(slug);
+      const title =
+        $a.attr('title')?.trim() ||
+        $a.text().trim() ||
+        $a.find('img[alt]').first().attr('alt')?.trim() ||
+        'Untitled';
+      const cover = $a.find('img').first().attr('data-src') || $a.find('img').first().attr('src');
+      out.push({
+        sourceId: 'toonily',
+        sourceMangaId: slug,
+        title,
+        coverUrl: cover,
+        url: absUrl(href)
+      });
+    });
+  }
   return out;
 }
 
@@ -105,14 +109,20 @@ export const toonily: Source = {
   async fetchPopular(page, filters) {
     const sort = (filters?.sort as string) || 'trending';
     const url = `${SITE}/search/?m_orderby=${sort}&page=${page}`;
-    const html = await toonText(url);
+    const { html } = await browserGet(url, {
+      waitForSelector: '.page-item-detail, .manga, a[href*="/webtoon/"]',
+      settleMs: 1500
+    });
     const items = parseListing(html);
     return { items, page, hasNext: items.length > 0 };
   },
 
   async fetchLatest(page) {
     const url = `${SITE}/search/?m_orderby=latest&page=${page}`;
-    const html = await toonText(url);
+    const { html } = await browserGet(url, {
+      waitForSelector: '.page-item-detail, .manga, a[href*="/webtoon/"]',
+      settleMs: 1500
+    });
     const items = parseListing(html);
     return { items, page, hasNext: items.length > 0 };
   },
@@ -120,14 +130,20 @@ export const toonily: Source = {
   async search(query, page) {
     const q = encodeURIComponent(query.trim().toLowerCase().replace(/\s+/g, '+'));
     const url = `${SITE}/search/${q}/?page=${page}`;
-    const html = await toonText(url);
+    const { html } = await browserGet(url, {
+      waitForSelector: '.page-item-detail, .manga, a[href*="/webtoon/"]',
+      settleMs: 1500
+    });
     const items = parseListing(html);
     return { items, page, hasNext: items.length > 0 };
   },
 
   async fetchDetail(slug) {
     const url = `${SITE}/webtoon/${slug}/`;
-    const html = await toonText(url);
+    const { html } = await browserGet(url, {
+      waitForSelector: '.post-title h1, h1.entry-title, h1',
+      settleMs: 1500
+    });
     const $ = cheerio.load(html);
     const title =
       $('.post-title h1').first().text().trim() ||
@@ -153,15 +169,15 @@ export const toonily: Source = {
     });
 
     const statusText = (fields['status'] || '').toLowerCase();
-    const status: MangaDetail['status'] = statusText.includes('ongoing')
-      ? 'ongoing'
+    const status = statusText.includes('ongoing')
+      ? ('ongoing' as const)
       : statusText.includes('complete')
-        ? 'completed'
+        ? ('completed' as const)
         : statusText.includes('hiatus')
-          ? 'hiatus'
+          ? ('hiatus' as const)
           : statusText.includes('cancel')
-            ? 'cancelled'
-            : 'unknown';
+            ? ('cancelled' as const)
+            : ('unknown' as const);
 
     const tags: string[] = [];
     $('.genres-content a, .wp-manga-tags-list a').each((_, e) => {
@@ -185,7 +201,10 @@ export const toonily: Source = {
 
   async fetchChapters(slug) {
     const url = `${SITE}/webtoon/${slug}/`;
-    const html = await toonText(url);
+    const { html } = await browserGet(url, {
+      waitForSelector: '.wp-manga-chapter, li.wp-manga-chapter',
+      settleMs: 1500
+    });
     const $ = cheerio.load(html);
     const out: ChapterInfo[] = [];
     $('.wp-manga-chapter a, li.wp-manga-chapter > a').each((_, el) => {
@@ -196,11 +215,13 @@ export const toonily: Source = {
       const raw = $a.text().replace(/\s+/g, ' ').trim();
       const numMatch = raw.match(/Chapter\s*([\d.]+)/i) || raw.match(/([\d.]+)/);
       const num = numMatch ? parseFloat(numMatch[1]) : 0;
-      const dateText = $a.closest('li').find('.chapter-release-date, .chapter-date').first().text().trim();
+      const dateText = $a
+        .closest('li')
+        .find('.chapter-release-date, .chapter-date')
+        .first()
+        .text()
+        .trim();
       const upl = Date.parse(dateText);
-      // Encode both manga and chapter slugs in the id so fetchPageUrls can
-      // rebuild the chapter URL. Use a separator that's safe in filenames
-      // (chapter id is also used as a download directory name).
       out.push({
         sourceChapterId: `${slug}__${cslug}`,
         number: num,
@@ -227,7 +248,10 @@ export const toonily: Source = {
     const mangaSlug = chapterId.substring(0, sepIdx);
     const chapterSlug = chapterId.substring(sepIdx + 2);
     const url = `${SITE}/webtoon/${mangaSlug}/${chapterSlug}/?style=list`;
-    const html = await toonText(url);
+    const { html } = await browserGet(url, {
+      waitForSelector: '.reading-content img, .page-break img',
+      settleMs: 2000
+    });
     const $ = cheerio.load(html);
     const urls: string[] = [];
     $('.reading-content img, .page-break img').each((_, el) => {
@@ -236,10 +260,6 @@ export const toonily: Source = {
         urls.push(src);
       }
     });
-    if (urls.length > 0) return urls;
-    // Fallback: render the page (covers cases where images are lazy-loaded
-    // via JS that cheerio doesn't see).
-    const rendered = await getRenderedImageUrls(url, { waitMs: 8000, minCount: 2 });
-    return rendered.filter((u) => !/\/(static|assets|favicon|logo|avatar)/i.test(u));
+    return urls;
   }
 };
